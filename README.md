@@ -15,8 +15,8 @@ Technologies Used
 -SvelteKit & Svelte 5 – Fast, lightweight framework with built-in frontend and backend support
 -TypeScript – Adds type safety and helps reduce bugs early
 -Three.js – Used for interactive 3D visuals on the landing page
--PostgreSQL – Reliable and powerful relational database
--Drizzle ORM – Type-safe database operations using TypeScript
+-MongoDB – High-performance, schema-less document database
+-Native MongoDB Driver – Highly performant, direct native database queries
 -Bcrypt – Secure password hashing
 -Zod – Validates and protects incoming API data
 
@@ -26,11 +26,11 @@ Running ProjectHub on your system is simple and beginner-friendly. Just follow t
 
 Steps to Run
 -Install Node.js (v18+)
--Install and run PostgreSQL locally
+-Install and run MongoDB locally (or open MongoDB Compass)
 -Run npm install to install dependencies
 -Create a .env file using .env.example
--Update DATABASE_URL with your local database details
--Run npm run db:push to set up database tables
--(Optional) Run npm run db:seed for sample data
+-Update DATABASE_URL with your local MongoDB connection string (e.g. `mongodb://localhost:27017/projecthub`)
+-Run npm run db:seed to set up collections and populate sample mock data
 -Start the app using npm run dev
+
 
