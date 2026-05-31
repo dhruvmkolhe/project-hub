@@ -1,7 +1,8 @@
 <script lang="ts">
-    let { data } = $props();
     import Navbar from "$lib/components/Navbar.svelte";
     import HomeScene from "$lib/components/visuals/HomeScene.svelte";
+
+    let { data } = $props();
 </script>
 
 <div class="home-page">
@@ -18,7 +19,9 @@
     <section class="hero-content container">
         <div class="hero-left">
             <div class="welcome-badge">
-                <span class="wave-emoji">👋</span>
+                <svg class="badge-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--amber); margin-right: 4px; display: inline-block; vertical-align: middle;">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
                 <span>Welcome to ProjectHub</span>
             </div>
             <h1 class="hero-title">
@@ -66,7 +69,9 @@
             <div class="scene-container">
                 <HomeScene />
                 <div class="scene-caption">
-                    <span class="caption-emoji">✨</span>
+                    <svg class="caption-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--amber); margin-right: 6px; display: inline-block; vertical-align: middle;">
+                        <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9Z" />
+                    </svg>
                     <span>Your friendly coding companion</span>
                 </div>
             </div>
@@ -239,7 +244,7 @@
                 <p class="voice-text">
                     I was stuck on a React performance issue for days. Someone
                     here spotted it in minutes and explained it so clearly. This
-                    community is amazing! 🎉
+                    community is amazing!
                 </p>
                 <div class="voice-author">
                     <div class="author-avatar">
@@ -256,7 +261,7 @@
                 <p class="voice-text">
                     Reviewing code here has taught me more than any tutorial.
                     You see real-world problems and solutions. Plus, everyone is
-                    so supportive! 💚
+                    so supportive!
                 </p>
                 <div class="voice-author">
                     <div class="author-avatar">
@@ -273,7 +278,7 @@
                 <p class="voice-text">
                     As a junior dev, I was nervous to share my code. But the
                     feedback I got was so kind and helpful. I've grown so much
-                    in just a few months! 🚀
+                    in just a few months!
                 </p>
                 <div class="voice-author">
                     <div class="author-avatar">
@@ -291,7 +296,11 @@
     <!-- FINAL CTA -->
     <section class="footer-cta container">
         <div class="cta-content">
-            <div class="cta-emoji">🌟</div>
+            <div class="cta-icon-wrapper" style="margin-bottom: var(--space-md); display: inline-flex; padding: var(--space-sm); background: var(--color-surface-hover); border-radius: var(--radius-md); border: 1px solid var(--color-border); justify-content: center; align-items: center; align-self: center;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--amber); filter: drop-shadow(0 0 8px var(--amber-glow));">
+                    <path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9Z" />
+                </svg>
+            </div>
             <h2>Ready to Join Us?</h2>
             <p class="cta-text">
                 Become part of a community that believes in growing together.
@@ -334,33 +343,15 @@
 </div>
 
 <style>
-    /* VARIABLES - DARK MODE */
-    :root {
-        --bg-primary: #0a0a0f;
-        --bg-secondary: #141419;
-        --bg-card: #1a1a24;
-        --text-primary: #e8e8f0;
-        --text-secondary: #a0a0b8;
-        --accent-warm: #ff6b6b;
-        --accent-purple: #a78bfa;
-        --accent-green: #34d399;
-        --accent-yellow: #fbbf24;
-        --glow-warm: rgba(255, 107, 107, 0.15);
-        --glow-purple: rgba(167, 139, 250, 0.15);
-        --glow-green: rgba(52, 211, 153, 0.15);
-    }
-
-    /* GLOBAL */
-    :global(body) {
-        background: var(--bg-primary);
-        color: var(--text-primary);
-        font-family: "Inter", system-ui, sans-serif;
-    }
+    /* Use design-system tokens — no local overrides needed */
 
     .home-page {
         position: relative;
         overflow-x: hidden;
         min-height: 100vh;
+        --accent-warm: #ff6b6b;
+        --glow-warm: rgba(255, 107, 107, 0.15);
+        --accent-green: #34d399;
     }
 
     .container {
@@ -369,18 +360,32 @@
         padding: 0 1.5rem;
     }
 
-    /* WARM DARK GRADIENT BACKGROUND */
+    /* GRADIENT BACKGROUND — absolute so it doesn't bleed onto other pages */
     .hero-bg {
-        position: fixed;
+        position: absolute;
         inset: 0;
-        z-index: -1;
+        z-index: 0;
+        background: var(--color-bg);
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    :global([data-theme="dark"]) .hero-bg {
         background: radial-gradient(
             ellipse at top,
             #1a1a2e 0%,
             #0a0a0f 50%,
             #000000 100%
         );
-        pointer-events: none;
+    }
+
+    :global([data-theme="light"]) .hero-bg {
+        background: radial-gradient(
+            ellipse at top,
+            #f0f4ff 0%,
+            #faf9f7 50%,
+            #ffffff 100%
+        );
     }
 
     .gradient-orb {
@@ -439,6 +444,8 @@
         padding-bottom: 6rem;
         min-height: 85vh;
         gap: 4rem;
+        position: relative;
+        z-index: 1;
     }
 
     .hero-left {
@@ -450,18 +457,16 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        background: var(--bg-card);
+        background: var(--color-surface);
         padding: 0.5rem 1.25rem;
         border-radius: 100px;
-        box-shadow:
-            0 4px 20px rgba(0, 0, 0, 0.4),
-            0 0 0 1px rgba(255, 255, 255, 0.1);
+        box-shadow: var(--shadow-md);
         margin-bottom: 1.5rem;
         font-size: 0.95rem;
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--color-text);
         animation: bounce-in 0.6s ease-out;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--color-border);
     }
 
     .wave-emoji {
@@ -505,7 +510,7 @@
         line-height: 1.1;
         margin-bottom: 1.5rem;
         letter-spacing: -0.02em;
-        color: var(--text-primary);
+        color: var(--color-text);
     }
 
     .text-gradient {
@@ -523,7 +528,7 @@
 
     .hero-subtitle {
         font-size: 1.25rem;
-        color: var(--text-secondary);
+        color: var(--color-text-secondary);
         line-height: 1.7;
         margin-bottom: 2.5rem;
     }
@@ -532,18 +537,20 @@
         display: flex;
         gap: 1rem;
         margin-bottom: 2rem;
+        flex-wrap: wrap;
     }
 
     .hero-stats {
         display: flex;
         align-items: center;
         gap: 1rem;
-        padding: 1rem 1.5rem;
-        background: var(--bg-card);
+        padding: 0.75rem 1.25rem;
+        background: var(--color-surface);
         border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--shadow-md);
         width: fit-content;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--color-border);
+        flex-wrap: wrap;
     }
 
     .stat-item {
@@ -551,18 +558,18 @@
         align-items: center;
         gap: 0.5rem;
         font-size: 0.9rem;
-        color: var(--text-secondary);
+        color: var(--color-text-secondary);
     }
 
     .stat-text strong {
-        color: var(--text-primary);
+        color: var(--color-text);
         font-weight: 700;
     }
 
     .stat-divider {
         width: 1px;
         height: 24px;
-        background: rgba(255, 255, 255, 0.1);
+        background: var(--color-border);
     }
 
     .active-pulse {
@@ -596,15 +603,13 @@
         width: 100%;
         max-width: 500px;
         height: 500px;
-        background: var(--bg-card);
+        background: var(--color-surface);
         border-radius: 32px;
-        box-shadow:
-            0 20px 60px rgba(0, 0, 0, 0.5),
-            0 0 0 1px rgba(255, 255, 255, 0.1);
+        box-shadow: var(--shadow-xl);
         padding: 1.5rem;
         position: relative;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--color-border);
     }
 
     .scene-caption {
@@ -615,15 +620,16 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        background: rgba(26, 26, 36, 0.95);
+        background: var(--color-surface-elevated);
         backdrop-filter: blur(10px);
         padding: 0.5rem 1.25rem;
         border-radius: 100px;
         font-size: 0.9rem;
         font-weight: 600;
-        color: var(--text-primary);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--color-text);
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--color-border);
+        white-space: nowrap;
     }
 
     .caption-emoji {
@@ -633,6 +639,8 @@
     /* VALUE PROPS */
     .section-values {
         padding: 6rem 0;
+        position: relative;
+        z-index: 1;
     }
 
     .values-grid {
@@ -642,21 +650,19 @@
     }
 
     .value-card {
-        background: var(--bg-card);
+        background: var(--color-surface);
         padding: 2.5rem;
         border-radius: 24px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--shadow-md);
         transition: all 0.3s ease;
         text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--color-border);
     }
 
     .value-card:hover {
         transform: translateY(-8px);
-        box-shadow:
-            0 12px 40px rgba(0, 0, 0, 0.6),
-            0 0 0 1px rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow: var(--shadow-xl);
+        border-color: var(--ember);
     }
 
     .value-icon {
@@ -690,23 +696,26 @@
         font-size: 1.5rem;
         font-weight: 700;
         margin-bottom: 1rem;
-        color: var(--text-primary);
+        color: var(--color-text);
     }
 
     .value-card p {
-        color: var(--text-secondary);
+        color: var(--color-text-secondary);
         line-height: 1.6;
         font-size: 1rem;
     }
 
-    /* HOW IT WORKS */
     .section-works {
         padding: 6rem 0;
-        background: var(--bg-card);
+        background: var(--color-surface);
         border-radius: 48px;
-        margin: 0 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        margin: 0 auto;
+        width: calc(100% - 3rem);
+        max-width: 1200px;
+        border: 1px solid var(--color-border);
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        z-index: 1;
     }
 
     .section-header {
@@ -718,12 +727,12 @@
         font-size: 3rem;
         font-weight: 800;
         margin-bottom: 1rem;
-        color: var(--text-primary);
+        color: var(--color-text);
     }
 
     .section-subtitle {
         font-size: 1.25rem;
-        color: var(--text-secondary);
+        color: var(--color-text-secondary);
     }
 
     .steps-grid {
@@ -778,17 +787,19 @@
         font-size: 1.5rem;
         font-weight: 700;
         margin-bottom: 1rem;
-        color: var(--text-primary);
+        color: var(--color-text);
     }
 
     .step-card p {
-        color: var(--text-secondary);
+        color: var(--color-text-secondary);
         line-height: 1.6;
     }
 
     /* COMMUNITY VOICES */
     .section-voices {
         padding: 6rem 0;
+        position: relative;
+        z-index: 1;
     }
 
     .voice-grid {
@@ -798,19 +809,19 @@
     }
 
     .voice-card {
-        background: var(--bg-card);
+        background: var(--color-surface);
         padding: 2rem;
         border-radius: 24px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--shadow-md);
         position: relative;
         transition: all 0.3s ease;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--color-border);
     }
 
     .voice-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow: var(--shadow-xl);
+        border-color: var(--ember);
     }
 
     .quote-mark {
@@ -828,7 +839,7 @@
 
     .voice-text {
         font-size: 1rem;
-        color: var(--text-primary);
+        color: var(--color-text);
         line-height: 1.7;
         margin-bottom: 1.5rem;
     }
@@ -861,18 +872,20 @@
 
     .author-name {
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--color-text);
         font-size: 0.95rem;
     }
 
     .author-role {
         font-size: 0.85rem;
-        color: var(--text-secondary);
+        color: var(--color-text-secondary);
     }
 
     /* FINAL CTA */
     .footer-cta {
         padding: 8rem 0;
+        position: relative;
+        z-index: 1;
     }
 
     .cta-content {
@@ -984,16 +997,17 @@
     }
 
     .btn-secondary {
-        background: var(--bg-card);
-        color: var(--text-primary);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--color-surface);
+        color: var(--color-text);
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--color-border);
     }
 
     .btn-secondary:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: var(--shadow-md);
+        border-color: var(--graphite);
+        background: var(--color-surface-hover);
     }
 
     .cta-content .btn-secondary {
@@ -1019,11 +1033,26 @@
     }
 
     /* RESPONSIVE */
+    /* Large tablet / small desktop */
+    @media (max-width: 1100px) {
+        .hero-content {
+            gap: 2.5rem;
+        }
+        .scene-container {
+            max-width: 420px;
+            height: 420px;
+        }
+    }
+
+    /* Tablet */
     @media (max-width: 960px) {
         .hero-content {
             flex-direction: column;
             text-align: center;
-            padding-top: 6rem;
+            padding-top: 5rem;
+            padding-bottom: 4rem;
+            min-height: unset;
+            gap: 3rem;
         }
 
         .hero-left {
@@ -1031,7 +1060,7 @@
         }
 
         .hero-title {
-            font-size: 3rem;
+            font-size: 2.75rem;
         }
 
         .hero-actions {
@@ -1043,46 +1072,135 @@
         }
 
         .scene-container {
-            max-width: 400px;
-            height: 400px;
+            max-width: 380px;
+            height: 380px;
         }
 
+        /* 2-col on tablet before going 1-col on mobile */
         .values-grid,
-        .steps-grid,
         .voice-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .steps-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .section-works {
             margin: 0;
             border-radius: 0;
         }
+
+        .section-values,
+        .section-voices {
+            padding: 4rem 0;
+        }
+
+        .section-works {
+            padding: 4rem 0;
+        }
+
+        .footer-cta {
+            padding: 5rem 0;
+        }
+
+        .section-title {
+            font-size: 2.25rem;
+        }
     }
 
-    @media (max-width: 480px) {
+    /* Mobile */
+    @media (max-width: 640px) {
         .hero-title {
             font-size: 2.25rem;
         }
 
+        .hero-subtitle {
+            font-size: 1.1rem;
+        }
+
+        .scene-container {
+            max-width: 100%;
+            height: 300px;
+        }
+
+        .values-grid,
+        .steps-grid,
+        .voice-grid {
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+        }
+
+        .section-values,
+        .section-voices {
+            padding: 3rem 0;
+        }
+
+        .section-works {
+            padding: 3rem 0;
+        }
+
+        .footer-cta {
+            padding: 3rem 0;
+        }
+    }
+
+    /* Small mobile */
+    @media (max-width: 480px) {
+        .hero-content {
+            padding-top: 4rem;
+            padding-bottom: 2.5rem;
+        }
+
+        .hero-title {
+            font-size: 1.9rem;
+        }
+
         .section-title {
-            font-size: 2rem;
+            font-size: 1.75rem;
+        }
+
+        .hero-actions {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hero-actions .btn {
+            width: 100%;
+            max-width: 280px;
         }
 
         .cta-group {
             flex-direction: column;
+            align-items: center;
         }
 
-        .btn {
+        .cta-group .btn {
             width: 100%;
+            max-width: 280px;
         }
 
         .cta-content {
-            padding: 3rem 1.5rem;
+            padding: 3rem 1.25rem;
             border-radius: 24px;
         }
 
         .cta-content h2 {
-            font-size: 2rem;
+            font-size: 1.75rem;
+        }
+
+        .cta-text {
+            font-size: 1rem;
+        }
+
+        .hero-stats {
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .welcome-badge {
+            font-size: 0.85rem;
+            padding: 0.4rem 1rem;
         }
     }
 </style>

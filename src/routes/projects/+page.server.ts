@@ -1,7 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { projects, users, reviews } from '$lib/server/db/schema';
-import { eq, desc, sql, like, or, ilike } from 'drizzle-orm';
+import type { Project, User, Review } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ url }) => {
     const search = url.searchParams.get('search') || '';
@@ -11,43 +10,47 @@ export const load: PageServerLoad = async ({ url }) => {
     const offset = (page - 1) * limit;
 
     try {
-        // Build query
-        let query = db
-            .select({
-                id: projects.id,
-                title: projects.title,
-                shortDescription: projects.shortDescription,
-                description: projects.description,
-                thumbnailUrl: projects.thumbnailUrl,
-                techStack: projects.techStack,
-                category: projects.category,
-                liveUrl: projects.liveUrl,
-                githubUrl: projects.githubUrl,
-                viewCount: projects.viewCount,
-                createdAt: projects.createdAt,
-                userId: projects.userId,
-                username: users.username,
-                avatarUrl: users.avatarUrl
-            })
-            .from(projects)
-            .leftJoin(users, eq(projects.userId, users.id))
-            .where(eq(projects.status, 'approved'))
-            .orderBy(desc(projects.createdAt))
+        // Build MongoDB filter
+        const filter: any = { status: 'approved' };
+        
+        if (category) {
+            filter.category = category;
+        }
+        
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { shortDescription: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Get matching projects with limit & skip
+        const projectList = await db
+            .collection<Project>('projects')
+            .find(filter)
+            .sort({ createdAt: -1 })
+            .skip(offset)
             .limit(limit)
-            .offset(offset);
+            .toArray();
 
-        const projectList = await query;
-
-        // Get review stats for each project
+        // Get review stats and user details for each project
         const projectsWithStats = await Promise.all(
             projectList.map(async (project) => {
-                const stats = await db
-                    .select({
-                        avgRating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
-                        reviewCount: sql<number>`COUNT(${reviews.id})`
-                    })
-                    .from(reviews)
-                    .where(eq(reviews.projectId, project.id));
+                const user = await db.collection<User>('users').findOne(
+                    { id: project.userId },
+                    { projection: { username: 1, avatarUrl: 1 } }
+                );
+
+                const projectReviews = await db
+                    .collection<Review>('reviews')
+                    .find({ projectId: project.id })
+                    .toArray();
+
+                const reviewCount = projectReviews.length;
+                const averageRating = reviewCount > 0 
+                    ? projectReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+                    : 0;
 
                 return {
                     id: project.id,
@@ -62,22 +65,17 @@ export const load: PageServerLoad = async ({ url }) => {
                     viewCount: project.viewCount || 0,
                     createdAt: project.createdAt,
                     user: {
-                        username: project.username || 'Unknown',
-                        avatarUrl: project.avatarUrl
+                        username: user?.username || 'Unknown',
+                        avatarUrl: user?.avatarUrl || null
                     },
-                    averageRating: Number(stats[0]?.avgRating || 0),
-                    reviewCount: Number(stats[0]?.reviewCount || 0)
+                    averageRating: Number(averageRating.toFixed(1)),
+                    reviewCount
                 };
             })
         );
 
         // Get total count for pagination
-        const totalResult = await db
-            .select({ count: sql<number>`COUNT(*)` })
-            .from(projects)
-            .where(eq(projects.status, 'approved'));
-
-        const total = Number(totalResult[0]?.count || 0);
+        const total = await db.collection<Project>('projects').countDocuments(filter);
 
         return {
             projects: projectsWithStats,
@@ -101,3 +99,4 @@ export const load: PageServerLoad = async ({ url }) => {
         };
     }
 };
+

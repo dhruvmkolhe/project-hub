@@ -1,9 +1,23 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from './schema';
+import { MongoClient, type Db } from 'mongodb';
 import { DATABASE_URL } from '$env/static/private';
 
-const client = postgres(DATABASE_URL);
-export const db = drizzle(client, { schema });
+const client = new MongoClient(DATABASE_URL);
+let dbConnection: Db | null = null;
+
+export async function connectToDatabase(): Promise<Db> {
+    if (dbConnection) return dbConnection;
+    await client.connect();
+    dbConnection = client.db();
+    return dbConnection;
+}
+
+export const db = {
+    collection: <T = any>(name: string) => {
+        if (!dbConnection) {
+            throw new Error("Database not connected. Call connectToDatabase() first.");
+        }
+        return dbConnection.collection<T>(name);
+    }
+};
 
 export type Database = typeof db;

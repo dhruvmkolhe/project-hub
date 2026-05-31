@@ -1,10 +1,9 @@
 import type { Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import type { User } from '$lib/server/db/schema';
 import { loginSchema } from '$lib/validation';
 import { verifyPassword, createSession } from '$lib/server/auth';
-import { eq } from 'drizzle-orm';
 
 export const actions: Actions = {
     default: async ({ request, cookies }) => {
@@ -25,10 +24,7 @@ export const actions: Actions = {
 
         try {
             // Find user
-            const [user] = await db.select()
-                .from(users)
-                .where(eq(users.email, data.email))
-                .limit(1);
+            const user = await db.collection<User>('users').findOne({ email: data.email });
 
             if (!user) {
                 return fail(400, {

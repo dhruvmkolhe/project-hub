@@ -61,7 +61,10 @@
                         />
                     {:else}
                         <div class="thumbnail-placeholder">
-                            <span>🚀</span>
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-text-muted);">
+                                <polyline points="16 18 22 12 16 6" />
+                                <polyline points="8 6 2 12 8 18" />
+                            </svg>
                         </div>
                     {/if}
 
@@ -930,5 +933,21 @@
 
     .info-card .info-row span:first-child {
         color: var(--color-text-muted);
+    }
+
+    @media (max-width: 640px) {
+        main {
+            padding: var(--space-lg) var(--space-sm);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .project-links {
+            flex-direction: column;
+        }
+
+        .project-links .btn {
+            width: 100%;
+        }
     }
 </style>

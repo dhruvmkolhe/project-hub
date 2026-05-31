@@ -1,10 +1,10 @@
 import type { Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import type { User } from '$lib/server/db/schema';
 import { registerSchema } from '$lib/validation';
 import { hashPassword, createSession } from '$lib/server/auth';
-import { eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
 export const actions: Actions = {
     default: async ({ request, cookies }) => {
@@ -34,12 +34,9 @@ export const actions: Actions = {
 
         try {
             // Check if email already exists
-            const existingEmail = await db.select()
-                .from(users)
-                .where(eq(users.email, data.email))
-                .limit(1);
+            const existingEmail = await db.collection<User>('users').findOne({ email: data.email });
 
-            if (existingEmail.length > 0) {
+            if (existingEmail) {
                 return fail(400, {
                     error: 'An account with this email already exists',
                     email: data.email,
@@ -48,12 +45,9 @@ export const actions: Actions = {
             }
 
             // Check if username already exists
-            const existingUsername = await db.select()
-                .from(users)
-                .where(eq(users.username, data.username))
-                .limit(1);
+            const existingUsername = await db.collection<User>('users').findOne({ username: data.username });
 
-            if (existingUsername.length > 0) {
+            if (existingUsername) {
                 return fail(400, {
                     error: 'This username is already taken',
                     email: data.email,
@@ -63,17 +57,25 @@ export const actions: Actions = {
 
             // Create user
             const passwordHash = await hashPassword(data.password);
-            const [newUser] = await db.insert(users)
-                .values({
-                    email: data.email,
-                    username: data.username,
-                    passwordHash,
-                    displayName: data.username
-                })
-                .returning({ id: users.id });
+            const userId = randomUUID();
+            const now = new Date();
+
+            await db.collection<User>('users').insertOne({
+                id: userId,
+                email: data.email,
+                username: data.username,
+                passwordHash,
+                displayName: data.username,
+                avatarUrl: null,
+                bio: null,
+                githubUsername: null,
+                isAdmin: false,
+                createdAt: now,
+                updatedAt: now
+            });
 
             // Create session
-            const token = await createSession(newUser.id);
+            const token = await createSession(userId);
 
             cookies.set('session', token, {
                 path: '/',
@@ -94,3 +96,4 @@ export const actions: Actions = {
         throw redirect(303, '/dashboard');
     }
 };
+

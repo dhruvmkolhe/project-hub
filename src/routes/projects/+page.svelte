@@ -141,7 +141,6 @@
     .page-header {
         text-align: center;
         margin-bottom: var(--space-2xl);
-        opacity: 0;
     }
 
     .page-header h1 {
@@ -229,6 +228,10 @@
     }
 
     @media (max-width: 640px) {
+        main {
+            padding: var(--space-lg) var(--space-sm);
+        }
+
         .filters {
             flex-direction: column;
         }

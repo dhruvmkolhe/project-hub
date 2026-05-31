@@ -1,85 +1,96 @@
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { projects, users, reviews } from '$lib/server/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import type { Project, User, Review } from '$lib/server/db/schema';
+import { randomUUID } from 'crypto';
 
 export const load: PageServerLoad = async ({ params }) => {
     const projectId = params.id;
 
     try {
-        // Get project with user info
-        const [project] = await db
-            .select({
-                id: projects.id,
-                title: projects.title,
-                shortDescription: projects.shortDescription,
-                description: projects.description,
-                thumbnailUrl: projects.thumbnailUrl,
-                techStack: projects.techStack,
-                category: projects.category,
-                liveUrl: projects.liveUrl,
-                githubUrl: projects.githubUrl,
-                viewCount: projects.viewCount,
-                status: projects.status,
-                createdAt: projects.createdAt,
-                updatedAt: projects.updatedAt,
-                userId: projects.userId,
-                username: users.username,
-                displayName: users.displayName,
-                avatarUrl: users.avatarUrl,
-                bio: users.bio,
-                githubUsername: users.githubUsername
-            })
-            .from(projects)
-            .leftJoin(users, eq(projects.userId, users.id))
-            .where(eq(projects.id, projectId))
-            .limit(1);
+        // Get project
+        const project = await db.collection<Project>('projects').findOne({ id: projectId });
 
         if (!project) {
             throw error(404, 'Project not found');
         }
 
-        // Get reviews with reviewer info
-        const projectReviews = await db
-            .select({
-                id: reviews.id,
-                rating: reviews.rating,
-                functionalityScore: reviews.functionalityScore,
-                uiScore: reviews.uiScore,
-                codeQualityScore: reviews.codeQualityScore,
-                title: reviews.title,
-                content: reviews.content,
-                pros: reviews.pros,
-                cons: reviews.cons,
-                upvotes: reviews.upvotes,
-                createdAt: reviews.createdAt,
-                reviewerId: reviews.reviewerId,
-                reviewerUsername: users.username,
-                reviewerAvatar: users.avatarUrl
-            })
-            .from(reviews)
-            .leftJoin(users, eq(reviews.reviewerId, users.id))
-            .where(eq(reviews.projectId, projectId))
-            .orderBy(desc(reviews.createdAt));
+        // Get project creator details
+        const user = await db.collection<User>('users').findOne({ id: project.userId });
 
-        // Get stats
-        const stats = await db
-            .select({
-                avgRating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
-                avgFunctionality: sql<number>`COALESCE(AVG(${reviews.functionalityScore}), 0)`,
-                avgUi: sql<number>`COALESCE(AVG(${reviews.uiScore}), 0)`,
-                avgCodeQuality: sql<number>`COALESCE(AVG(${reviews.codeQualityScore}), 0)`,
-                reviewCount: sql<number>`COUNT(${reviews.id})`
+        // Get reviews
+        const rawReviews = await db
+            .collection<Review>('reviews')
+            .find({ projectId })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        // Get reviewer details for each review
+        const projectReviews = await Promise.all(
+            rawReviews.map(async (review) => {
+                const reviewer = await db.collection<User>('users').findOne(
+                    { id: review.reviewerId },
+                    { projection: { username: 1, avatarUrl: 1 } }
+                );
+
+                return {
+                    id: review.id,
+                    rating: review.rating,
+                    functionalityScore: review.functionalityScore,
+                    uiScore: review.uiScore,
+                    codeQualityScore: review.codeQualityScore,
+                    title: review.title,
+                    content: review.content,
+                    pros: review.pros,
+                    cons: review.cons,
+                    upvotes: review.upvotes || 0,
+                    createdAt: review.createdAt,
+                    reviewerId: review.reviewerId,
+                    reviewerUsername: reviewer?.username || 'Unknown',
+                    reviewerAvatar: reviewer?.avatarUrl || null
+                };
             })
-            .from(reviews)
-            .where(eq(reviews.projectId, projectId));
+        );
+
+        // Get reviews stats
+        const reviewCount = rawReviews.length;
+        let totalRating = 0;
+        let totalFunc = 0;
+        let totalUi = 0;
+        let totalCode = 0;
+        let funcCount = 0;
+        let uiCount = 0;
+        let codeCount = 0;
+
+        for (const r of rawReviews) {
+            totalRating += r.rating;
+            if (r.functionalityScore !== null && r.functionalityScore !== undefined) {
+                totalFunc += r.functionalityScore;
+                funcCount++;
+            }
+            if (r.uiScore !== null && r.uiScore !== undefined) {
+                totalUi += r.uiScore;
+                uiCount++;
+            }
+            if (r.codeQualityScore !== null && r.codeQualityScore !== undefined) {
+                totalCode += r.codeQualityScore;
+                codeCount++;
+            }
+        }
+
+        const stats = {
+            averageRating: reviewCount > 0 ? Number((totalRating / reviewCount).toFixed(1)) : 0,
+            avgFunctionality: funcCount > 0 ? Number((totalFunc / funcCount).toFixed(1)) : 0,
+            avgUi: uiCount > 0 ? Number((totalUi / uiCount).toFixed(1)) : 0,
+            avgCodeQuality: codeCount > 0 ? Number((totalCode / codeCount).toFixed(1)) : 0,
+            reviewCount
+        };
 
         // Update view count
+        const newViewCount = (project.viewCount || 0) + 1;
         await db
-            .update(projects)
-            .set({ viewCount: (project.viewCount || 0) + 1 })
-            .where(eq(projects.id, projectId));
+            .collection<Project>('projects')
+            .updateOne({ id: projectId }, { $set: { viewCount: newViewCount } });
 
         return {
             project: {
@@ -92,34 +103,28 @@ export const load: PageServerLoad = async ({ params }) => {
                 category: project.category || 'other',
                 liveUrl: project.liveUrl,
                 githubUrl: project.githubUrl,
-                viewCount: (project.viewCount || 0) + 1,
+                viewCount: newViewCount,
                 status: project.status,
                 createdAt: project.createdAt,
                 updatedAt: project.updatedAt,
                 user: {
                     id: project.userId,
-                    username: project.username || 'Unknown',
-                    displayName: project.displayName,
-                    avatarUrl: project.avatarUrl,
-                    bio: project.bio,
-                    githubUsername: project.githubUsername
+                    username: user?.username || 'Unknown',
+                    displayName: user?.displayName || null,
+                    avatarUrl: user?.avatarUrl || null,
+                    bio: user?.bio || null,
+                    githubUsername: user?.githubUsername || null
                 }
             },
             reviews: projectReviews.map(r => ({
                 ...r,
                 reviewer: {
                     id: r.reviewerId,
-                    username: r.reviewerUsername || 'Unknown',
+                    username: r.reviewerUsername,
                     avatarUrl: r.reviewerAvatar
                 }
             })),
-            stats: {
-                averageRating: Number(stats[0]?.avgRating || 0),
-                avgFunctionality: Number(stats[0]?.avgFunctionality || 0),
-                avgUi: Number(stats[0]?.avgUi || 0),
-                avgCodeQuality: Number(stats[0]?.avgCodeQuality || 0),
-                reviewCount: Number(stats[0]?.reviewCount || 0)
-            }
+            stats
         };
     } catch (err) {
         if ((err as any)?.status === 404) throw err;
@@ -157,7 +162,11 @@ export const actions: Actions = {
         }
 
         try {
-            await db.insert(reviews).values({
+            const reviewId = randomUUID();
+            const now = new Date();
+
+            await db.collection<Review>('reviews').insertOne({
+                id: reviewId,
                 projectId: params.id,
                 reviewerId: locals.user.id,
                 rating,
@@ -167,7 +176,10 @@ export const actions: Actions = {
                 title: title || null,
                 content,
                 pros: pros || null,
-                cons: cons || null
+                cons: cons || null,
+                upvotes: 0,
+                createdAt: now,
+                updatedAt: now
             });
 
             return { success: true };
@@ -177,3 +189,4 @@ export const actions: Actions = {
         }
     }
 };
+

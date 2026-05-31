@@ -1,8 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { projects, reviews, users } from '$lib/server/db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import type { Project, Review } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (!locals.user) {
@@ -12,54 +11,66 @@ export const load: PageServerLoad = async ({ locals }) => {
     try {
         // Get user's projects
         const userProjects = await db
-            .select({
-                id: projects.id,
-                title: projects.title,
-                shortDescription: projects.shortDescription,
-                thumbnailUrl: projects.thumbnailUrl,
-                category: projects.category,
-                status: projects.status,
-                viewCount: projects.viewCount,
-                createdAt: projects.createdAt
-            })
-            .from(projects)
-            .where(eq(projects.userId, locals.user.id))
-            .orderBy(desc(projects.createdAt));
+            .collection<Project>('projects')
+            .find({ userId: locals.user.id })
+            .sort({ createdAt: -1 })
+            .toArray();
 
         // Get review stats for user's projects
         const projectsWithStats = await Promise.all(
             userProjects.map(async (project) => {
-                const stats = await db
-                    .select({
-                        avgRating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
-                        reviewCount: sql<number>`COUNT(${reviews.id})`
-                    })
-                    .from(reviews)
-                    .where(eq(reviews.projectId, project.id));
+                const projectReviews = await db
+                    .collection<Review>('reviews')
+                    .find({ projectId: project.id })
+                    .toArray();
+
+                const reviewCount = projectReviews.length;
+                const averageRating = reviewCount > 0 
+                    ? projectReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+                    : 0;
 
                 return {
-                    ...project,
-                    averageRating: Number(stats[0]?.avgRating || 0),
-                    reviewCount: Number(stats[0]?.reviewCount || 0)
+                    id: project.id,
+                    title: project.title,
+                    shortDescription: project.shortDescription,
+                    thumbnailUrl: project.thumbnailUrl,
+                    category: project.category,
+                    status: project.status,
+                    viewCount: project.viewCount || 0,
+                    createdAt: project.createdAt,
+                    averageRating: Number(averageRating.toFixed(1)),
+                    reviewCount
                 };
             })
         );
 
-        // Get user's reviews
-        const userReviews = await db
-            .select({
-                id: reviews.id,
-                rating: reviews.rating,
-                title: reviews.title,
-                content: reviews.content,
-                createdAt: reviews.createdAt,
-                projectId: reviews.projectId,
-                projectTitle: projects.title
+        // Get user's reviews with project titles
+        const rawUserReviews = await db
+            .collection<Review>('reviews')
+            .find({ reviewerId: locals.user.id })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        const userReviews = await Promise.all(
+            rawUserReviews.map(async (review) => {
+                const project = await db
+                    .collection<Project>('projects')
+                    .findOne(
+                        { id: review.projectId },
+                        { projection: { title: 1 } }
+                    );
+
+                return {
+                    id: review.id,
+                    rating: review.rating,
+                    title: review.title,
+                    content: review.content,
+                    createdAt: review.createdAt,
+                    projectId: review.projectId,
+                    projectTitle: project?.title || 'Unknown Project'
+                };
             })
-            .from(reviews)
-            .leftJoin(projects, eq(reviews.projectId, projects.id))
-            .where(eq(reviews.reviewerId, locals.user.id))
-            .orderBy(desc(reviews.createdAt));
+        );
 
         // Get overall stats
         const totalProjects = userProjects.length;
@@ -93,3 +104,4 @@ export const load: PageServerLoad = async ({ locals }) => {
         };
     }
 };
+

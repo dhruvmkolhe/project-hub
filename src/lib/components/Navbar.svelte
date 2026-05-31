@@ -2,6 +2,8 @@
     let { user } = $props<{ user: any }>();
 
     let isMenuOpen = $state(false);
+    // Initialize from the data-theme already set by the inline script in app.html
+    // This avoids any flash or mismatch between server-rendered and client state
     let theme = $state<"light" | "dark">("dark");
 
     function toggleTheme() {
@@ -11,14 +13,12 @@
     }
 
     $effect(() => {
-        const savedTheme = localStorage.getItem("theme") as
-            | "light"
-            | "dark"
-            | null;
-        const prefersDark = window.matchMedia(
-            "(prefers-color-scheme: dark)",
-        ).matches;
-        theme = savedTheme || (prefersDark ? "dark" : "light");
+        // Read the theme that was already applied by the inline script in app.html
+        const current = document.documentElement.getAttribute("data-theme") as "light" | "dark" | null;
+        const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        theme = current || savedTheme || (prefersDark ? "dark" : "light");
+        // Ensure the attribute is always set correctly
         document.documentElement.setAttribute("data-theme", theme);
     });
 </script>
@@ -31,10 +31,18 @@
         </a>
 
         <div class="navbar-links" class:open={isMenuOpen}>
-            <a href="/projects" class="nav-link">Explore</a>
+            <a href="/projects" class="nav-link" onclick={() => (isMenuOpen = false)}>Explore</a>
             {#if user}
-                <a href="/projects/submit" class="nav-link">Submit</a>
-                <a href="/dashboard" class="nav-link">Dashboard</a>
+                <a href="/projects/submit" class="nav-link" onclick={() => (isMenuOpen = false)}>Submit</a>
+                <a href="/dashboard" class="nav-link" onclick={() => (isMenuOpen = false)}>Dashboard</a>
+                <div class="mobile-auth-divider"></div>
+                <form action="/api/auth/logout" method="POST" class="mobile-logout">
+                    <button type="submit" class="nav-link nav-link-danger">Logout</button>
+                </form>
+            {:else}
+                <div class="mobile-auth-divider"></div>
+                <a href="/auth/login" class="nav-link mobile-login" onclick={() => (isMenuOpen = false)}>Login</a>
+                <a href="/auth/register" class="btn btn-primary mobile-signup" onclick={() => (isMenuOpen = false)}>Sign Up Free</a>
             {/if}
         </div>
 
@@ -42,36 +50,22 @@
             <button
                 class="theme-toggle"
                 onclick={toggleTheme}
-                aria-label="Toggle theme"
+                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                title={theme === "dark" ? "Light mode" : "Dark mode"}
             >
-                {#if theme === "light"}
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path
-                            d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
-                        />
-                    </svg>
-                {:else}
-                    <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <circle cx="12" cy="12" r="5" />
-                        <path
-                            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-                        />
-                    </svg>
-                {/if}
+                <span class="toggle-track" class:dark={theme === "dark"}>
+                    <span class="toggle-thumb">
+                        <!-- Sun icon -->
+                        <svg class="icon-sun" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="5" />
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                        </svg>
+                        <!-- Moon icon -->
+                        <svg class="icon-moon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                    </span>
+                </span>
             </button>
 
             {#if user}
@@ -140,7 +134,7 @@
         -webkit-backdrop-filter: blur(12px);
     }
 
-    [data-theme="light"] .navbar {
+    :global([data-theme="light"]) .navbar {
         background: rgba(250, 249, 247, 0.85);
     }
 
@@ -215,30 +209,141 @@
         transform-origin: left;
     }
 
+    .nav-link-danger {
+        color: var(--crimson) !important;
+        background: none;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+    }
+
+    .mobile-auth-divider {
+        display: none;
+        width: 100%;
+        height: 1px;
+        background: var(--color-border);
+    }
+
+    .mobile-logout {
+        display: none;
+        width: 100%;
+    }
+
+    .mobile-signup {
+        display: none;
+    }
+
+    .mobile-login {
+        display: none;
+    }
+
     .navbar-actions {
         display: flex;
         align-items: center;
         gap: var(--space-md);
     }
 
+    /* ── Theme Toggle Pill ─────────────────────────────── */
     .theme-toggle {
         display: flex;
         align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
         background: transparent;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        color: var(--color-text-muted);
+        border: none;
+        padding: 2px;
         cursor: pointer;
-        transition: all var(--transition-fast);
+        border-radius: var(--radius-full);
     }
 
-    .theme-toggle:hover {
-        background: var(--color-surface-hover);
-        color: var(--amber);
+    .toggle-track {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 52px;
+        height: 26px;
+        background: #3a3a4a;
+        border-radius: var(--radius-full);
+        border: 1px solid var(--color-border);
+        transition: background var(--transition-normal), border-color var(--transition-normal);
+        padding: 3px;
+    }
+
+    .toggle-track.dark {
+        background: #2a2040;
         border-color: var(--amber);
+    }
+
+    :global([data-theme="light"]) .toggle-track {
+        background: #dde8f5;
+        border-color: #90b4d8;
+    }
+
+    :global([data-theme="light"]) .toggle-track.dark {
+        background: #2a2040;
+        border-color: var(--amber);
+    }
+
+    .toggle-thumb {
+        position: absolute;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        background: var(--amber);
+        border-radius: var(--radius-full);
+        transition: left var(--transition-normal), background var(--transition-normal), box-shadow var(--transition-normal);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .toggle-track.dark .toggle-thumb {
+        left: calc(100% - 21px);
+        background: #7c6dab;
+        box-shadow: 0 0 8px rgba(124, 109, 171, 0.5);
+    }
+
+    :global([data-theme="light"]) .toggle-track .toggle-thumb {
+        left: 3px;
+        background: #f0a500;
+    }
+
+    :global([data-theme="light"]) .toggle-track.dark .toggle-thumb {
+        left: calc(100% - 21px);
+        background: #7c6dab;
+    }
+
+    .icon-sun, .icon-moon {
+        position: absolute;
+        transition: opacity var(--transition-fast), transform var(--transition-normal);
+    }
+
+    /* In dark mode: thumb is on the right, moon visible */
+    .toggle-track.dark .icon-sun {
+        opacity: 0;
+        transform: rotate(-90deg) scale(0.7);
+    }
+    .toggle-track.dark .icon-moon {
+        opacity: 1;
+        color: #e0d4ff;
+    }
+
+    /* In light mode: thumb is on the left, sun visible */
+    .toggle-track:not(.dark) .icon-sun {
+        opacity: 1;
+        color: #fff;
+    }
+    .toggle-track:not(.dark) .icon-moon {
+        opacity: 0;
+        transform: rotate(90deg) scale(0.7);
+    }
+
+    .theme-toggle:hover .toggle-track:not(.dark) {
+        border-color: var(--amber);
+        box-shadow: 0 0 8px rgba(244, 166, 35, 0.25);
+    }
+    .theme-toggle:hover .toggle-track.dark {
+        box-shadow: 0 0 8px rgba(124, 109, 171, 0.3);
     }
 
     .user-menu {
@@ -344,19 +449,32 @@
     }
 
     @media (max-width: 768px) {
+        .navbar-container {
+            height: 56px;
+            padding: 0 var(--space-md);
+        }
+
+        .navbar-brand {
+            font-size: 1.15rem;
+        }
+
         .navbar-links {
             position: fixed;
-            top: 64px;
+            top: 56px;
             left: 0;
             right: 0;
             flex-direction: column;
+            align-items: flex-start;
             background: var(--color-surface);
             border-bottom: 1px solid var(--color-border);
-            padding: var(--space-lg);
-            transform: translateY(-100%);
+            padding: var(--space-lg) var(--space-md);
+            gap: var(--space-lg);
+            transform: translateY(-110%);
             opacity: 0;
             visibility: hidden;
             transition: all var(--transition-normal);
+            z-index: 99;
+            box-shadow: var(--shadow-lg);
         }
 
         .navbar-links.open {
@@ -365,12 +483,58 @@
             visibility: visible;
         }
 
+        .nav-link {
+            font-size: 0.9rem;
+        }
+
         .mobile-menu-btn {
             display: flex;
         }
 
-        .navbar-actions .btn {
+        /* Keep login visible but hide sign up to save space */
+        .navbar-actions .btn-ghost {
             display: none;
+        }
+
+        .navbar-actions .btn-primary {
+            display: none;
+        }
+
+        /* Show auth links inside mobile drawer */
+        .mobile-auth-divider {
+            display: block;
+        }
+
+        .mobile-logout {
+            display: block;
+        }
+
+        .mobile-login {
+            display: block;
+        }
+
+        .mobile-signup {
+            display: inline-flex;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .navbar-container {
+            height: 52px;
+        }
+
+        .toggle-track {
+            width: 44px;
+            height: 22px;
+        }
+
+        .toggle-thumb {
+            width: 15px;
+            height: 15px;
+        }
+
+        .toggle-track.dark .toggle-thumb {
+            left: calc(100% - 18px);
         }
     }
 </style>

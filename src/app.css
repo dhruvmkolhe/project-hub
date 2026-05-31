@@ -68,6 +68,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
   --shadow-ember: 0 0 30px -5px var(--ember-glow);
   --shadow-amber: 0 0 30px -5px var(--amber-glow);
   
@@ -113,6 +114,10 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  /* Smooth theme transitions */
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
 }
 
 body {
@@ -125,6 +130,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: 0.01em;
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -194,7 +202,7 @@ code, pre {
 
 .btn-primary {
   background: var(--ember);
-  color: var(--chalk);
+  color: #fff;
   border-color: var(--ember);
 }
 
@@ -520,6 +528,36 @@ select.form-input {
 /* ═══════════════════════════════════════════════════════
    SELECTION
    ═══════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════
+   GLOBAL RESPONSIVE
+   ═══════════════════════════════════════════════════════ */
+
+/* Tablet */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 var(--space-md);
+  }
+
+  h1 { font-size: 2.25rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.25rem; }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .container {
+    padding: 0 var(--space-sm);
+  }
+
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+
+  .btn-lg {
+    padding: var(--space-sm) var(--space-lg);
+    font-size: 0.85rem;
+  }
+}
 
 ::selection {
   background: var(--ember);

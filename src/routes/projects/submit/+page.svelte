@@ -9,6 +9,14 @@
     // Use form prop as initial value, but be aware of reactivity rules
     let techStack = $state<string[]>(form?.techStack || []);
 
+    let lastForm = $state(form);
+    $effect(() => {
+        if (form !== lastForm) {
+            lastForm = form;
+            techStack = form?.techStack || [];
+        }
+    });
+
     const categories = [
         { value: "web-app", label: "Web App" },
         { value: "mobile-app", label: "Mobile App" },
@@ -620,5 +628,26 @@
         border-radius: 6px;
         background: var(--color-bg-secondary);
         color: var(--text-primary);
+    }
+
+    @media (max-width: 640px) {
+        .submit-form {
+            padding: var(--space-md);
+        }
+
+        .form-section {
+            padding-bottom: var(--space-lg);
+            margin-bottom: var(--space-lg);
+        }
+
+        .form-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+            gap: var(--space-sm);
+        }
+
+        .form-actions .btn {
+            width: 100%;
+        }
     }
 </style>

@@ -1,8 +1,11 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { projects } from '$lib/server/db/schema';
+import type { Project } from '$lib/server/db/schema';
 import { projectSchema } from '$lib/validation';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
+import { randomUUID } from 'crypto';
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (!locals.user) {
@@ -13,10 +16,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         user: locals.user
     };
 };
-
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { randomUUID } from 'crypto';
 
 export const actions: Actions = {
     default: async ({ request, locals }) => {
@@ -78,22 +77,27 @@ export const actions: Actions = {
         }
 
         try {
-            const [newProject] = await db.insert(projects)
-                .values({
-                    userId: locals.user.id,
-                    title: data.title,
-                    description: data.description,
-                    shortDescription: data.shortDescription || null,
-                    githubUrl: data.githubUrl || null,
-                    liveUrl: data.liveUrl || null,
-                    techStack: data.techStack,
-                    category: data.category,
-                    status: 'approved',
-                    thumbnailUrl: thumbnailUrl // Insert the file path
-                })
-                .returning({ id: projects.id });
+            const projectId = randomUUID();
+            const now = new Date();
 
-            throw redirect(303, `/projects/${newProject.id}`);
+            await db.collection<Project>('projects').insertOne({
+                id: projectId,
+                userId: locals.user.id,
+                title: data.title,
+                description: data.description,
+                shortDescription: data.shortDescription || null,
+                githubUrl: data.githubUrl || null,
+                liveUrl: data.liveUrl || null,
+                thumbnailUrl: thumbnailUrl,
+                techStack: data.techStack,
+                category: data.category,
+                status: 'approved',
+                viewCount: 0,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            throw redirect(303, `/projects/${projectId}`);
         } catch (error) {
             if ((error as any)?.status === 303) throw error;
             console.error('Failed to create project:', error);
@@ -101,3 +105,4 @@ export const actions: Actions = {
         }
     }
 };
+

@@ -1,9 +1,12 @@
 <script lang="ts">
+    import Navbar from "$lib/components/Navbar.svelte";
     import StarRating from "$lib/components/StarRating.svelte";
     import { fade } from "svelte/transition";
 
     let { data } = $props();
-    const { profile, projects, stats } = data;
+    let profile = $derived(data.profile);
+    let projects = $derived(data.projects);
+    let stats = $derived(data.stats);
 
     function formatDate(date: Date) {
         return new Date(date).toLocaleDateString("en-US", {
@@ -14,11 +17,12 @@
 </script>
 
 <svelte:head>
-    <title>{profile.displayName || profile.username} | ProjectHub Profile</title
-    >
+    <title>{profile.displayName || profile.username} | ProjectHub Profile</title>
 </svelte:head>
 
-<div class="profile-container" in:fade={{ duration: 300 }}>
+<div class="profile-page">
+    <Navbar user={data.user} />
+    <div class="profile-container" in:fade={{ duration: 300 }}>
     <!-- Profile Header -->
     <header class="profile-header">
         <div class="header-content">
@@ -105,7 +109,12 @@
                                     alt={project.title}
                                 />
                             {:else}
-                                <div class="placeholder-thumb">🚀</div>
+                                <div class="placeholder-thumb">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-text-muted);">
+                                        <polyline points="16 18 22 12 16 6" />
+                                        <polyline points="8 6 2 12 8 18" />
+                                    </svg>
+                                </div>
                             {/if}
                         </div>
                         <div class="card-content">
@@ -116,8 +125,12 @@
                             </p>
 
                             <div class="project-footer">
-                                <div class="rating-badge">
-                                    <span class="star">⭐</span>
+                                <div class="rating-badge" style="display: inline-flex; align-items: center;">
+                                    <span class="star" style="display: inline-flex; align-items: center; justify-content: center; margin-right: 4px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="color: var(--amber);">
+                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                        </svg>
+                                    </span>
                                     <span
                                         >{project.averageRating > 0
                                             ? project.averageRating.toFixed(1)
@@ -151,9 +164,15 @@
             </div>
         {/if}
     </main>
+    </div>
 </div>
 
 <style>
+    .profile-page {
+        min-height: 100vh;
+        background: var(--color-bg);
+    }
+
     .profile-container {
         max-width: 1000px;
         margin: 0 auto;
@@ -177,6 +196,15 @@
     }
 
     @media (max-width: 768px) {
+        .profile-container {
+            padding: var(--space-lg) var(--space-sm);
+        }
+
+        .profile-header {
+            padding: var(--space-lg);
+            margin-bottom: var(--space-xl);
+        }
+
         .header-content {
             grid-template-columns: 1fr;
             text-align: center;

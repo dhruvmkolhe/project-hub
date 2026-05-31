@@ -616,4 +616,45 @@
             gap: var(--space-lg);
         }
     }
+
+    @media (max-width: 640px) {
+        main {
+            padding: var(--space-lg) var(--space-sm);
+        }
+
+        .project-thumb {
+            width: 100%;
+            height: 140px;
+        }
+
+        .project-meta {
+            flex-wrap: wrap;
+            gap: var(--space-md);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .welcome {
+            gap: var(--space-md);
+        }
+
+        .avatar {
+            width: 48px;
+            height: 48px;
+            font-size: 1.2rem;
+        }
+
+        .welcome h1 {
+            font-size: 1.35rem;
+        }
+
+        .tab {
+            padding: var(--space-sm) var(--space-xs);
+            font-size: 0.75rem;
+        }
+
+        .tab-content {
+            padding: var(--space-md);
+        }
+    }
 </style>

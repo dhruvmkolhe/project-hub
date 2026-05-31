@@ -1,14 +1,30 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { MongoClient } from 'mongodb';
 import bcrypt from 'bcryptjs';
-import * as schema from './schema';
+import { randomUUID } from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
-// Read database URL from environment or use default
-const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres: @localhost:5432/projecthub';
-const client = postgres(DATABASE_URL);
-const db = drizzle(client, { schema });
+// Load .env file manually
+try {
+    if (fs.existsSync('.env')) {
+        const envContent = fs.readFileSync('.env', 'utf-8');
+        for (const line of envContent.split(/\r?\n/)) {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith('#')) {
+                const eqIdx = trimmed.indexOf('=');
+                if (eqIdx !== -1) {
+                    const key = trimmed.slice(0, eqIdx).trim();
+                    const value = trimmed.slice(eqIdx + 1).trim();
+                    process.env[key] = value;
+                }
+            }
+        }
+    }
+} catch (e) {
+    console.warn('Failed to parse .env file:', e);
+}
 
-const { users, projects, reviews } = schema;
+const DATABASE_URL = process.env.DATABASE_URL || 'mongodb://localhost:27017/projecthub';
 
 // Inline password hashing to avoid SvelteKit dependencies
 async function hashPassword(password: string): Promise<string> {
@@ -156,25 +172,47 @@ const DEMO_REVIEWS = [
 
 async function seedDatabase() {
     console.log('🌱 Starting database seed...\n');
+    const client = new MongoClient(DATABASE_URL);
 
     try {
-        console.log('👤 Creating demo users...');
+        await client.connect();
+        const db = client.db();
+
+        // Drop existing collections for clean seed
+        console.log('🧹 Cleaning existing collections...');
+        const collections = await db.listCollections().toArray();
+        const collectionNames = collections.map((c) => c.name);
+
+        for (const name of ['users', 'sessions', 'projects', 'reviews']) {
+            if (collectionNames.includes(name)) {
+                await db.collection(name).drop();
+                console.log(`  ✓ Dropped collection: ${name}`);
+            }
+        }
+
+        console.log('\n👤 Creating demo users...');
         const createdUsers: { id: string; username: string }[] = [];
 
         for (const userData of DEMO_USERS) {
             const passwordHash = await hashPassword(userData.password);
-            const [user] = await db.insert(users)
-                .values({
-                    email: userData.email,
-                    username: userData.username,
-                    passwordHash,
-                    displayName: userData.displayName,
-                    bio: userData.bio,
-                    githubUsername: userData.githubUsername
-                })
-                .returning({ id: users.id, username: users.username });
+            const userId = randomUUID();
+            const now = new Date();
 
-            createdUsers.push(user);
+            await db.collection('users').insertOne({
+                id: userId,
+                email: userData.email,
+                username: userData.username,
+                passwordHash,
+                displayName: userData.displayName,
+                avatarUrl: null,
+                bio: userData.bio,
+                githubUsername: userData.githubUsername,
+                isAdmin: false,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            createdUsers.push({ id: userId, username: userData.username });
             console.log(`  ✓ Created user: ${userData.username} (${userData.email})`);
         }
 
@@ -184,31 +222,38 @@ async function seedDatabase() {
         for (let i = 0; i < DEMO_PROJECTS.length; i++) {
             const projectData = DEMO_PROJECTS[i];
             const userIndex = i % createdUsers.length;
+            const projectId = randomUUID();
+            const now = new Date();
 
-            const [project] = await db.insert(projects)
-                .values({
-                    userId: createdUsers[userIndex].id,
-                    title: projectData.title,
-                    shortDescription: projectData.shortDescription,
-                    description: projectData.description,
-                    githubUrl: projectData.githubUrl,
-                    liveUrl: projectData.liveUrl || null,
-                    techStack: projectData.techStack,
-                    category: projectData.category,
-                    thumbnailUrl: projectData.thumbnailUrl,
-                    status: 'approved',
-                    viewCount: Math.floor(Math.random() * 500) + 50
-                })
-                .returning({ id: projects.id, title: projects.title });
+            await db.collection('projects').insertOne({
+                id: projectId,
+                userId: createdUsers[userIndex].id,
+                title: projectData.title,
+                shortDescription: projectData.shortDescription,
+                description: projectData.description,
+                githubUrl: projectData.githubUrl,
+                liveUrl: projectData.liveUrl || null,
+                thumbnailUrl: projectData.thumbnailUrl,
+                techStack: projectData.techStack,
+                category: projectData.category,
+                status: 'approved',
+                viewCount: Math.floor(Math.random() * 500) + 50,
+                createdAt: now,
+                updatedAt: now
+            });
 
-            createdProjects.push(project);
+            createdProjects.push({ id: projectId, title: projectData.title });
             console.log(`  ✓ Created project: ${projectData.title}`);
         }
 
         console.log('\n⭐ Creating demo reviews...');
 
         for (const reviewData of DEMO_REVIEWS) {
-            await db.insert(reviews).values({
+            const reviewId = randomUUID();
+            const now = new Date();
+
+            await db.collection('reviews').insertOne({
+                id: reviewId,
                 projectId: createdProjects[reviewData.projectIndex].id,
                 reviewerId: createdUsers[reviewData.reviewerIndex].id,
                 rating: reviewData.rating,
@@ -218,7 +263,10 @@ async function seedDatabase() {
                 title: reviewData.title,
                 content: reviewData.content,
                 pros: reviewData.pros,
-                cons: reviewData.cons
+                cons: reviewData.cons,
+                upvotes: 0,
+                createdAt: now,
+                updatedAt: now
             });
             console.log(`  ✓ Added review for: ${createdProjects[reviewData.projectIndex].title}`);
         }
@@ -229,12 +277,15 @@ async function seedDatabase() {
             console.log(`   • ${user.email}`);
         }
 
-        await client.end();
+        await client.close();
     } catch (error) {
         console.error('❌ Error seeding database:', error);
-        await client.end();
+        try {
+            await client.close();
+        } catch (_) {}
         throw error;
     }
 }
 
 seedDatabase().then(() => process.exit(0)).catch(() => process.exit(1));
+
