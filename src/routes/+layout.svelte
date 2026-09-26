@@ -7,18 +7,18 @@
   let siteUrl = $derived($page.url.origin || 'https://projecthub.com');
   let canonicalUrl = $derived(`${siteUrl}${$page.url.pathname}`);
 
-  const websiteSchema = {
+  const websiteSchema = $derived({
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     'name': 'ProjectHub',
-    'url': SITE_URL,
+    'url': siteUrl,
     'description': 'A community platform where students showcase their projects and receive peer feedback through structured reviews.',
     'potentialAction': {
       '@type': 'SearchAction',
-      'target': `${SITE_URL}/projects?search={search_term_string}`,
+      'target': `${siteUrl}/projects?search={search_term_string}`,
       'query-input': 'required name=search_term_string'
     }
-  };
+  });
 </script>
 
 <svelte:head>
