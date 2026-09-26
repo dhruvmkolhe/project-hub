@@ -28,6 +28,8 @@
   <!-- Canonical & Icons -->
   <link rel="canonical" href={canonicalUrl} />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" href="/favicon.png" sizes="64x64" />
+  <link rel="shortcut icon" href="/favicon.ico" />
   
   <!-- Open Graph / Social Sharing -->
   <meta property="og:type" content="website" />
