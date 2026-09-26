@@ -17,7 +17,13 @@
 </script>
 
 <svelte:head>
-    <title>{profile.displayName || profile.username} | ProjectHub Profile</title>
+    <title>{profile.displayName || profile.username} - Developer Profile | ProjectHub</title>
+    <meta name="description" content={`View projects, code reviews, and developer contributions by ${profile.displayName || profile.username} on ProjectHub.`} />
+    <meta property="og:title" content={`${profile.displayName || profile.username} - Developer Profile | ProjectHub`} />
+    <meta property="og:description" content={`View projects, code reviews, and developer contributions by ${profile.displayName || profile.username} on ProjectHub.`} />
+    {#if profile.avatarUrl}
+        <meta property="og:image" content={profile.avatarUrl} />
+    {/if}
 </svelte:head>
 
 <div class="profile-page">

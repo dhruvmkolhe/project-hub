@@ -83,6 +83,11 @@
     }
 </script>
 
+<svelte:head>
+    <title>Submit Your Project - ProjectHub</title>
+    <meta name="description" content="Share your project with the developer community and receive constructive peer feedback." />
+</svelte:head>
+
 <div class="submit-page">
     <Navbar user={data.user} />
 

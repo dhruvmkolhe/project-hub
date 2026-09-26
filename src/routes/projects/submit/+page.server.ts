@@ -3,6 +3,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import type { Project } from '$lib/server/db/schema';
 import { projectSchema } from '$lib/validation';
+import { checkRateLimit, sanitizeText, validateUploadedFile } from '$lib/server/security';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
@@ -18,53 +19,69 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-    default: async ({ request, locals }) => {
+    default: async ({ request, locals, getClientAddress }) => {
         if (!locals.user) {
             throw redirect(303, '/auth/login');
         }
 
+        const clientIp = getClientAddress() || 'unknown';
+        const rateCheck = checkRateLimit(`submit_project:${locals.user.id}:${clientIp}`, 10, 60 * 1000);
+
+        if (!rateCheck.success) {
+            return fail(429, { error: 'Too many submission requests. Please wait a minute.' });
+        }
+
         const formData = await request.formData();
 
-        // Handle File Upload
+        // Handle File Upload Validation & Sanitization
         let thumbnailUrl: string | null = null;
         const thumbnailFile = formData.get('thumbnail') as File;
 
         if (thumbnailFile && thumbnailFile.size > 0 && thumbnailFile.name) {
-            try {
-                // simple validation
-                if (thumbnailFile.size > 5 * 1024 * 1024) { // 5MB
-                    return fail(400, { error: 'Thumbnail must be less than 5MB' });
-                }
+            const validation = validateUploadedFile(thumbnailFile);
+            if (!validation.valid) {
+                return fail(400, { error: validation.error || 'Invalid upload file' });
+            }
 
-                const ext = path.extname(thumbnailFile.name);
-                const fileName = `${randomUUID()}${ext}`;
+            try {
+                const fileName = `${randomUUID()}${validation.extension}`;
                 const uploadDir = 'static/uploads/projects';
 
                 await mkdir(uploadDir, { recursive: true });
 
                 const arrayBuffer = await thumbnailFile.arrayBuffer();
                 const buffer = Buffer.from(arrayBuffer);
-                await writeFile(`${uploadDir}/${fileName}`, buffer);
+                await writeFile(path.join(uploadDir, fileName), buffer);
 
                 thumbnailUrl = `/uploads/projects/${fileName}`;
             } catch (err) {
-                console.error('Upload failed:', err);
-                // continue without thumbnail or fail? Let's continue.
+                console.error('File upload save error:', err);
+                return fail(500, { error: 'Failed to process file upload. Please try again.' });
             }
         }
 
+        const rawTitle = formData.get('title');
+        const rawDescription = formData.get('description');
+        const rawShortDescription = formData.get('shortDescription');
+        const rawGithubUrl = formData.get('githubUrl');
+        const rawLiveUrl = formData.get('liveUrl');
+        const rawTechStack = formData.get('techStack');
+        const rawCategory = formData.get('category');
+
         const data = {
-            title: formData.get('title') as string,
-            description: formData.get('description') as string,
-            shortDescription: formData.get('shortDescription') as string,
-            githubUrl: formData.get('githubUrl') as string,
-            liveUrl: formData.get('liveUrl') as string,
-            techStack: (formData.get('techStack') as string).split(',').map(t => t.trim()).filter(Boolean),
-            category: formData.get('category') as any,
-            // thumbnailUrl is handled separately
+            title: sanitizeText(rawTitle as string),
+            description: sanitizeText(rawDescription as string),
+            shortDescription: sanitizeText(rawShortDescription as string),
+            githubUrl: (rawGithubUrl as string)?.trim() || '',
+            liveUrl: (rawLiveUrl as string)?.trim() || '',
+            techStack: (rawTechStack as string || '')
+                .split(',')
+                .map((t) => sanitizeText(t.trim()))
+                .filter(Boolean),
+            category: rawCategory as any
         };
 
-        // Validate
+        // Validate Schema
         const result = projectSchema.safeParse(data);
         if (!result.success) {
             const errors: Record<string, string> = {};
@@ -82,7 +99,7 @@ export const actions: Actions = {
 
             await db.collection<Project>('projects').insertOne({
                 id: projectId,
-                userId: locals.user.id,
+                userId: String(locals.user.id),
                 title: data.title,
                 description: data.description,
                 shortDescription: data.shortDescription || null,
@@ -105,4 +122,3 @@ export const actions: Actions = {
         }
     }
 };
-

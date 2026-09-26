@@ -1,35 +1,33 @@
-import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import type { Project, User, Review } from '$lib/server/db/schema';
+import { checkRateLimit, sanitizeText } from '$lib/server/security';
 import { randomUUID } from 'crypto';
 
 export const load: PageServerLoad = async ({ params }) => {
-    const projectId = params.id;
+    const projectId = String(params.id);
 
     try {
-        // Get project
+        // Parameterized query (Mongo injection prevention)
         const project = await db.collection<Project>('projects').findOne({ id: projectId });
 
         if (!project) {
             throw error(404, 'Project not found');
         }
 
-        // Get project creator details
-        const user = await db.collection<User>('users').findOne({ id: project.userId });
+        const user = await db.collection<User>('users').findOne({ id: String(project.userId) });
 
-        // Get reviews
         const rawReviews = await db
             .collection<Review>('reviews')
-            .find({ projectId })
+            .find({ projectId: String(projectId) })
             .sort({ createdAt: -1 })
             .toArray();
 
-        // Get reviewer details for each review
         const projectReviews = await Promise.all(
             rawReviews.map(async (review) => {
                 const reviewer = await db.collection<User>('users').findOne(
-                    { id: review.reviewerId },
+                    { id: String(review.reviewerId) },
                     { projection: { username: 1, avatarUrl: 1 } }
                 );
 
@@ -52,7 +50,6 @@ export const load: PageServerLoad = async ({ params }) => {
             })
         );
 
-        // Get reviews stats
         const reviewCount = rawReviews.length;
         let totalRating = 0;
         let totalFunc = 0;
@@ -86,7 +83,6 @@ export const load: PageServerLoad = async ({ params }) => {
             reviewCount
         };
 
-        // Update view count
         const newViewCount = (project.viewCount || 0) + 1;
         await db
             .collection<Project>('projects')
@@ -116,7 +112,7 @@ export const load: PageServerLoad = async ({ params }) => {
                     githubUsername: user?.githubUsername || null
                 }
             },
-            reviews: projectReviews.map(r => ({
+            reviews: projectReviews.map((r) => ({
                 ...r,
                 reviewer: {
                     id: r.reviewerId,
@@ -133,32 +129,37 @@ export const load: PageServerLoad = async ({ params }) => {
     }
 };
 
-import type { Actions } from './$types';
-import { fail, redirect } from '@sveltejs/kit';
-
 export const actions: Actions = {
-    submitReview: async ({ request, locals, params }) => {
+    submitReview: async ({ request, locals, params, getClientAddress }) => {
         if (!locals.user) {
             throw redirect(303, '/auth/login');
         }
 
+        const clientIp = getClientAddress() || 'unknown';
+        const rateCheck = checkRateLimit(`submit_review:${locals.user.id}:${clientIp}`, 10, 60 * 1000);
+
+        if (!rateCheck.success) {
+            return fail(429, { error: 'Too many review submissions. Please wait a minute.' });
+        }
+
         const formData = await request.formData();
 
-        const rating = parseInt(formData.get('rating') as string);
-        const functionalityScore = parseInt(formData.get('functionalityScore') as string) || null;
-        const uiScore = parseInt(formData.get('uiScore') as string) || null;
-        const codeQualityScore = parseInt(formData.get('codeQualityScore') as string) || null;
-        const title = formData.get('title') as string;
-        const content = formData.get('content') as string;
-        const pros = formData.get('pros') as string;
-        const cons = formData.get('cons') as string;
+        const rating = parseInt(formData.get('rating') as string, 10);
+        const functionalityScore = parseInt(formData.get('functionalityScore') as string, 10) || null;
+        const uiScore = parseInt(formData.get('uiScore') as string, 10) || null;
+        const codeQualityScore = parseInt(formData.get('codeQualityScore') as string, 10) || null;
+        
+        const title = sanitizeText(formData.get('title') as string);
+        const content = sanitizeText(formData.get('content') as string);
+        const pros = sanitizeText(formData.get('pros') as string);
+        const cons = sanitizeText(formData.get('cons') as string);
 
         if (!rating || rating < 1 || rating > 5) {
             return fail(400, { error: 'Please provide a rating between 1 and 5' });
         }
 
         if (!content || content.length < 20) {
-            return fail(400, { error: 'Review must be at least 20 characters' });
+            return fail(400, { error: 'Review content must be at least 20 characters' });
         }
 
         try {
@@ -167,8 +168,8 @@ export const actions: Actions = {
 
             await db.collection<Review>('reviews').insertOne({
                 id: reviewId,
-                projectId: params.id,
-                reviewerId: locals.user.id,
+                projectId: String(params.id),
+                reviewerId: String(locals.user.id),
                 rating,
                 functionalityScore,
                 uiScore,
@@ -189,4 +190,3 @@ export const actions: Actions = {
         }
     }
 };
-

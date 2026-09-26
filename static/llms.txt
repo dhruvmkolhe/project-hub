@@ -1,0 +1,14 @@
+# ProjectHub
+
+> ProjectHub is a community platform where student developers and software engineers showcase their projects and receive structured peer feedback through code, UI, and functionality reviews.
+
+## Core Features
+- Project Showcase: Share web apps, mobile apps, CLI tools, APIs, AI/ML models, and games.
+- Structured Peer Reviews: Ratings and constructive feedback across Functionality, UI Design, and Code Quality.
+- Developer Dashboards & Profiles: Track submitted projects, feedback scores, and peer contributions.
+
+## Important Links
+- [Explore Projects](https://projecthub.com/projects): Browse student and open-source project submissions.
+- [Submit Project](https://projecthub.com/projects/submit): Submit a project for peer review.
+- [Terms of Service](https://projecthub.com/terms): Platform usage guidelines.
+- [Privacy Policy](https://projecthub.com/privacy): Data privacy commitments.

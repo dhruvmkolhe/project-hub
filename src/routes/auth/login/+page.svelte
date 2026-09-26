@@ -62,6 +62,11 @@
     });
 </script>
 
+<svelte:head>
+    <title>Log In - ProjectHub</title>
+    <meta name="description" content="Sign in to your ProjectHub account to manage your projects and view peer feedback." />
+</svelte:head>
+
 <div class="auth-page">
     <div class="auth-split">
         <!-- Left Side: Form -->

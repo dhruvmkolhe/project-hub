@@ -4,16 +4,31 @@ import { db } from '$lib/server/db';
 import type { User } from '$lib/server/db/schema';
 import { loginSchema } from '$lib/validation';
 import { verifyPassword, createSession } from '$lib/server/auth';
+import { checkRateLimit, sanitizeText } from '$lib/server/security';
 
 export const actions: Actions = {
-    default: async ({ request, cookies }) => {
+    default: async ({ request, cookies, getClientAddress }) => {
+        const clientIp = getClientAddress() || 'unknown';
+        const rateCheck = checkRateLimit(`login:${clientIp}`, 10, 60 * 1000);
+
+        if (!rateCheck.success) {
+            return fail(429, { error: 'Too many login attempts. Please wait a minute before trying again.' });
+        }
+
         const formData = await request.formData();
+        const rawEmail = formData.get('email');
+        const rawPassword = formData.get('password');
+
+        if (typeof rawEmail !== 'string' || typeof rawPassword !== 'string') {
+            return fail(400, { error: 'Invalid input format' });
+        }
+
         const data = {
-            email: formData.get('email') as string,
-            password: formData.get('password') as string
+            email: sanitizeText(rawEmail).toLowerCase(),
+            password: rawPassword
         };
 
-        // Validate input
+        // Validate input schema
         const result = loginSchema.safeParse(data);
         if (!result.success) {
             return fail(400, {
@@ -23,8 +38,8 @@ export const actions: Actions = {
         }
 
         try {
-            // Find user
-            const user = await db.collection<User>('users').findOne({ email: data.email });
+            // Find user using parameterized string primitive query (Mongo injection prevention)
+            const user = await db.collection<User>('users').findOne({ email: String(data.email) });
 
             if (!user) {
                 return fail(400, {
@@ -45,6 +60,7 @@ export const actions: Actions = {
             // Create session
             const token = await createSession(user.id);
 
+            // Set secure, HttpOnly, SameSite cookie
             cookies.set('session', token, {
                 path: '/',
                 httpOnly: true,

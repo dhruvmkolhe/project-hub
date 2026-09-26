@@ -20,6 +20,11 @@
     let selectedCategory = $state(data.filters.category);
 </script>
 
+<svelte:head>
+    <title>Explore Student Projects - ProjectHub</title>
+    <meta name="description" content="Discover, search, and review web apps, mobile apps, APIs, CLI tools, and AI projects built by student developers." />
+</svelte:head>
+
 <div class="projects-page">
     <Navbar user={data.user} />
 

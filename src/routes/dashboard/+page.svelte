@@ -21,6 +21,12 @@
     };
 </script>
 
+<svelte:head>
+    <title>Developer Dashboard - ProjectHub</title>
+    <meta name="description" content="Track your submitted projects, view received peer reviews, and monitor project performance on ProjectHub." />
+    <meta name="robots" content="noindex, nofollow" />
+</svelte:head>
+
 <div class="dashboard-page">
     <Navbar user={data.user} />
 

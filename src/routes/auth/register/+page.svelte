@@ -7,6 +7,11 @@
     let isLoading = $state(false);
 </script>
 
+<svelte:head>
+    <title>Create Account - ProjectHub</title>
+    <meta name="description" content="Join the ProjectHub developer community. Share projects, get peer reviews, and grow your coding skills." />
+</svelte:head>
+
 <div class="auth-page">
     <div class="auth-split">
         <!-- Left Side: Form -->

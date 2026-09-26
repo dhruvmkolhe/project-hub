@@ -4,19 +4,41 @@ import { db } from '$lib/server/db';
 import type { User } from '$lib/server/db/schema';
 import { registerSchema } from '$lib/validation';
 import { hashPassword, createSession } from '$lib/server/auth';
+import { checkRateLimit, sanitizeText } from '$lib/server/security';
 import { randomUUID } from 'crypto';
 
 export const actions: Actions = {
-    default: async ({ request, cookies }) => {
+    default: async ({ request, cookies, getClientAddress }) => {
+        const clientIp = getClientAddress() || 'unknown';
+        const rateCheck = checkRateLimit(`register:${clientIp}`, 5, 60 * 1000);
+
+        if (!rateCheck.success) {
+            return fail(429, { error: 'Too many registration attempts. Please wait a minute before trying again.' });
+        }
+
         const formData = await request.formData();
+        const rawEmail = formData.get('email');
+        const rawUsername = formData.get('username');
+        const rawPassword = formData.get('password');
+        const rawConfirmPassword = formData.get('confirmPassword');
+
+        if (
+            typeof rawEmail !== 'string' ||
+            typeof rawUsername !== 'string' ||
+            typeof rawPassword !== 'string' ||
+            typeof rawConfirmPassword !== 'string'
+        ) {
+            return fail(400, { error: 'Invalid form submission' });
+        }
+
         const data = {
-            email: formData.get('email') as string,
-            username: formData.get('username') as string,
-            password: formData.get('password') as string,
-            confirmPassword: formData.get('confirmPassword') as string
+            email: sanitizeText(rawEmail).toLowerCase(),
+            username: sanitizeText(rawUsername),
+            password: rawPassword,
+            confirmPassword: rawConfirmPassword
         };
 
-        // Validate input
+        // Validate input schema
         const result = registerSchema.safeParse(data);
         if (!result.success) {
             const errors: Record<string, string> = {};
@@ -33,8 +55,8 @@ export const actions: Actions = {
         }
 
         try {
-            // Check if email already exists
-            const existingEmail = await db.collection<User>('users').findOne({ email: data.email });
+            // Parameterized query checks (Mongo injection prevention)
+            const existingEmail = await db.collection<User>('users').findOne({ email: String(data.email) });
 
             if (existingEmail) {
                 return fail(400, {
@@ -44,8 +66,7 @@ export const actions: Actions = {
                 });
             }
 
-            // Check if username already exists
-            const existingUsername = await db.collection<User>('users').findOne({ username: data.username });
+            const existingUsername = await db.collection<User>('users').findOne({ username: String(data.username) });
 
             if (existingUsername) {
                 return fail(400, {
@@ -55,7 +76,7 @@ export const actions: Actions = {
                 });
             }
 
-            // Create user
+            // Create user with sanitized values
             const passwordHash = await hashPassword(data.password);
             const userId = randomUUID();
             const now = new Date();
@@ -96,4 +117,3 @@ export const actions: Actions = {
         throw redirect(303, '/dashboard');
     }
 };
-

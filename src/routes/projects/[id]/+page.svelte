@@ -42,7 +42,36 @@
     const hasReviewed = data.reviews.some(
         (r) => r.reviewer.id === data.user?.id,
     );
+
+    const projectSchema = $derived({
+        '@context': 'https://schema.org',
+        '@type': 'SoftwareApplication',
+        'name': data.project.title,
+        'description': data.project.shortDescription || data.project.description.slice(0, 150),
+        'applicationCategory': categoryLabels[data.project.category] || 'DeveloperApplication',
+        'author': {
+            '@type': 'Person',
+            'name': data.project.user?.displayName || data.project.user?.username || 'Developer'
+        }
+    });
 </script>
+
+<svelte:head>
+    <title>{data.project.title} - ProjectHub</title>
+    <meta name="description" content={data.project.shortDescription || data.project.description.slice(0, 150)} />
+    <meta property="og:title" content={`${data.project.title} - ProjectHub`} />
+    <meta property="og:description" content={data.project.shortDescription || data.project.description.slice(0, 150)} />
+    {#if data.project.thumbnailUrl}
+        <meta property="og:image" content={data.project.thumbnailUrl} />
+        <meta name="twitter:image" content={data.project.thumbnailUrl} />
+    {/if}
+    <meta property="og:type" content="article" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={`${data.project.title} - ProjectHub`} />
+    <meta name="twitter:description" content={data.project.shortDescription || data.project.description.slice(0, 150)} />
+
+    {@html `<script type="application/ld+json">${JSON.stringify(projectSchema)}</script>`}
+</svelte:head>
 
 <div class="project-page">
     <Navbar user={data.user} />
@@ -435,43 +464,46 @@
             <aside class="sidebar">
                 <!-- Stats Card -->
                 <div class="card stats-card">
-                    <h3>Project Stats</h3>
-                    <div class="stat-row">
-                        <span>Overall Rating</span>
-                        <div class="stat-value">
-                            <StarRating
-                                rating={data.stats.averageRating}
-                                size="sm"
-                            />
-                            <span>{data.stats.averageRating.toFixed(1)}</span>
+                    <div class="card-header-row">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="header-icon">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                        <h3>Project Stats</h3>
+                    </div>
+
+                    <div class="stat-hero">
+                        <div class="hero-score-badge">
+                            <span class="hero-score">{data.stats.averageRating.toFixed(1)}</span>
+                            <span class="hero-max">/ 5</span>
+                        </div>
+                        <div class="hero-stars">
+                            <StarRating rating={data.stats.averageRating} size="md" />
+                            <span class="hero-count">{data.stats.reviewCount} {data.stats.reviewCount === 1 ? 'review' : 'reviews'}</span>
                         </div>
                     </div>
+
                     {#if data.stats.reviewCount > 0}
-                        <div class="stat-row">
-                            <span>Functionality</span>
-                            <div class="stat-value">
-                                <StarRating
-                                    rating={data.stats.avgFunctionality}
-                                    size="sm"
-                                />
+                        <div class="sub-stats-grid">
+                            <div class="stat-row">
+                                <span class="stat-label">Functionality</span>
+                                <div class="stat-value">
+                                    <StarRating rating={data.stats.avgFunctionality} size="sm" />
+                                    <span class="score-num">{data.stats.avgFunctionality.toFixed(1)}</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="stat-row">
-                            <span>UI/UX</span>
-                            <div class="stat-value">
-                                <StarRating
-                                    rating={data.stats.avgUi}
-                                    size="sm"
-                                />
+                            <div class="stat-row">
+                                <span class="stat-label">UI/UX</span>
+                                <div class="stat-value">
+                                    <StarRating rating={data.stats.avgUi} size="sm" />
+                                    <span class="score-num">{data.stats.avgUi.toFixed(1)}</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="stat-row">
-                            <span>Code Quality</span>
-                            <div class="stat-value">
-                                <StarRating
-                                    rating={data.stats.avgCodeQuality}
-                                    size="sm"
-                                />
+                            <div class="stat-row">
+                                <span class="stat-label">Code Quality</span>
+                                <div class="stat-value">
+                                    <StarRating rating={data.stats.avgCodeQuality} size="sm" />
+                                    <span class="score-num">{data.stats.avgCodeQuality.toFixed(1)}</span>
+                                </div>
                             </div>
                         </div>
                     {/if}
@@ -842,32 +874,114 @@
     }
 
     .sidebar h3 {
-        margin-bottom: var(--space-md);
-        font-size: 1rem;
+        font-family: var(--font-sans, system-ui, sans-serif);
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--color-text);
     }
 
     /* Stats Card */
+    .card-header-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .header-icon {
+        color: var(--amber, #f59e0b);
+    }
+
+    .stat-hero {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.85rem 1rem;
+        background: var(--color-surface-hover, rgba(255, 255, 255, 0.03));
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md, 12px);
+        margin-bottom: 1rem;
+    }
+
+    .hero-score-badge {
+        display: flex;
+        align-items: baseline;
+        gap: 3px;
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(255, 107, 107, 0.15));
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        padding: 0.4rem 0.75rem;
+        border-radius: 10px;
+    }
+
+    .hero-score {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--amber, #f59e0b);
+        line-height: 1;
+        font-family: var(--font-sans, system-ui, sans-serif);
+    }
+
+    .hero-max {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-text-muted);
+    }
+
+    .hero-stars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .hero-count {
+        font-size: 0.8rem;
+        color: var(--color-text-muted);
+        font-family: var(--font-sans, system-ui, sans-serif);
+    }
+
+    .sub-stats-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
     .stats-card .stat-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: var(--space-sm) 0;
-        border-bottom: 1px solid var(--color-border);
+        padding: 0.5rem 0.75rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm, 8px);
+        transition: background 0.2s, border-color 0.2s;
     }
 
-    .stats-card .stat-row:last-child {
-        border-bottom: none;
+    .stats-card .stat-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        font-family: var(--font-sans, system-ui, sans-serif);
+        color: var(--color-text-secondary);
     }
 
     .stat-value {
         display: flex;
         align-items: center;
-        gap: var(--space-sm);
+        gap: 0.5rem;
     }
 
-    .stat-value span {
-        font-weight: 600;
+    .score-num {
+        font-size: 0.85rem;
+        font-weight: 700;
+        font-family: var(--font-sans, system-ui, sans-serif);
         color: var(--color-text);
+        min-width: 24px;
+        text-align: right;
     }
 
     /* Author Card */
